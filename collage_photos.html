@@ -162,6 +162,43 @@ const EMBEDDED_ITEMS = [
 ];
 
 const OUTPUT_WIDTH=2400;
+
+// ── LECTURE DES PHOTOS DEPUIS L'URL (?photos=...) ──
+async function loadPhotosFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const encoded = params.get('photos');
+  if (!encoded) return;
+  try {
+    const urls = JSON.parse(atob(encoded));
+    if (!urls.length) return;
+    pb.style.display = 'block';
+    pf.style.width = '0%';
+    for (let i = 0; i < urls.length; i++) {
+      try {
+        // Fetch via proxy to avoid CORS — use a data URL approach
+        const resp = await fetch(urls[i]);
+        const blob = await resp.blob();
+        const file = new File([blob], `photo_vt_${i+1}.jpg`, {type: blob.type});
+        const img = await loadImg(file);
+        images.push({id: idCounter++, img, isPortrait: img.naturalHeight > img.naturalWidth, name: file.name});
+      } catch(e) {
+        console.warn('Could not load photo:', urls[i], e);
+      }
+      pf.style.width = ((i+1)/urls.length*100) + '%';
+    }
+    pb.style.display = 'none';
+    if (images.length) {
+      rebuildTray();
+      trayWrap.style.display = 'block';
+      ctls.style.display = 'flex';
+    }
+  } catch(e) {
+    console.error('Error parsing photos param:', e);
+  }
+}
+// Appel au chargement
+window.addEventListener('DOMContentLoaded', loadPhotosFromUrl);
+
 let images=[],generatedRows=[],currentRowIdx=0,annotations=[],idCounter=0,dragSrcId=null;
 let edAnnotations=[],selectedId=null,dragState=null;
 
